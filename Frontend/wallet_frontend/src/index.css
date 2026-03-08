@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
 * {
   margin: 0;
   padding: 0;
@@ -5,283 +7,99 @@
 }
 
 body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+  font-family: 'Inter', sans-serif;
+  background: #f0fdf4;
+  color: #1e293b;
   min-height: 100vh;
 }
 
-/* ─── NAVBAR RESPONSIVE ─── */
-@media (max-width: 768px) {
-  .desktop-links {
-    display: none !important;
-  }
-  .desktop-user {
-    display: none !important;
-  }
-  .hamburger-btn {
-    display: block !important;
-  }
-}
-
-@media (min-width: 769px) {
-  .hamburger-btn {
-    display: none !important;
-  }
-  .mobile-menu {
-    display: none !important;
-  }
-}
-
-/* ─── DASHBOARD RESPONSIVE ─── */
-.dashboard-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 32px 24px;
-}
-
-.summary-cards {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-  margin-bottom: 32px;
-}
-
-.charts-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-  margin-bottom: 32px;
-}
-
-.quick-actions {
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-@media (max-width: 900px) {
-  .charts-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 768px) {
-  .dashboard-container {
-    padding: 16px 12px;
-  }
-
-  .summary-cards {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-
-  .charts-grid {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-
-  .quick-actions {
-    flex-direction: column;
-  }
-
-  .quick-actions button {
-    width: 100% !important;
-  }
-}
-
-/* ─── EXPENSES RESPONSIVE ─── */
-.expenses-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 32px 24px;
-}
-
-.expenses-layout {
-  display: grid;
-  grid-template-columns: 1fr 2fr;
-  gap: 24px;
-}
-
-.expenses-table-wrapper {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-.expenses-table {
+input, select {
   width: 100%;
-  border-collapse: collapse;
-  min-width: 500px;
-}
-
-@media (max-width: 768px) {
-  .expenses-container {
-    padding: 16px 12px;
-  }
-
-  .expenses-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .expenses-table {
-    font-size: 13px;
-  }
-
-  .expenses-table th,
-  .expenses-table td {
-    padding: 8px 10px !important;
-  }
-
-  /* Hide less important columns on mobile */
-  .hide-mobile {
-    display: none;
-  }
-}
-
-/* ─── BUDGETS RESPONSIVE ─── */
-.budgets-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 32px 24px;
-}
-
-.budgets-layout {
-  display: grid;
-  grid-template-columns: 1fr 2fr;
-  gap: 24px;
-}
-
-.budgets-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-}
-
-@media (max-width: 900px) {
-  .budgets-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 768px) {
-  .budgets-container {
-    padding: 16px 12px;
-  }
-
-  .budgets-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .budgets-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ─── CARD STYLES ─── */
-.card {
-  background: white;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-}
-
-@media (max-width: 768px) {
-  .card {
-    padding: 16px;
-    border-radius: 12px;
-  }
-}
-
-/* ─── FORMS RESPONSIVE ─── */
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.form-input {
-  padding: 10px 14px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 14px;
+  background: #fff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 13px 16px;
+  color: #1e293b;
+  font-size: 15px;
+  font-family: 'Inter', sans-serif;
   outline: none;
-  transition: border-color 0.2s;
-  width: 100%;
-}
-
-.form-input:focus {
-  border-color: #16a34a;
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
-}
-
-/* ─── BUTTONS ─── */
-.btn-primary {
-  background: linear-gradient(135deg, #16a34a, #15803d);
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 600;
-  width: 100%;
   transition: all 0.2s;
 }
 
-.btn-primary:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+input:focus, select:focus {
+  border-color: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22,163,74,0.1);
 }
 
-/* ─── PAGE TITLE ─── */
-.page-title {
-  font-size: 28px;
-  font-weight: 700;
-  color: #15803d;
-  margin-bottom: 8px;
+input::placeholder {
+  color: #94a3b8;
 }
 
-.page-subtitle {
-  font-size: 14px;
-  color: #6b7280;
-  margin-bottom: 24px;
-}
-
-@media (max-width: 768px) {
-  .page-title {
-    font-size: 22px;
-  }
-}
-
-/* ─── LOGIN / REGISTER PAGES ─── */
-.auth-container {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-
-.auth-card {
-  background: white;
-  border-radius: 20px;
-  padding: 40px;
+button {
   width: 100%;
-  max-width: 420px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  background: linear-gradient(135deg, #16a34a, #15803d);
+  color: white;
+  border: none;
+  padding: 13px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-@media (max-width: 480px) {
-  .auth-card {
-    padding: 24px 20px;
-    border-radius: 16px;
-  }
+button:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(22,163,74,0.35);
 }
 
-/* ─── SCROLLBAR ─── */
+button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+a {
+  color: #16a34a;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  text-align: left;
+  padding: 12px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+td {
+  padding: 14px 16px;
+  font-size: 14px;
+  color: #1e293b;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+tr:hover td {
+  background: #f0fdf4;
+}
+
 ::-webkit-scrollbar {
   width: 6px;
-  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
