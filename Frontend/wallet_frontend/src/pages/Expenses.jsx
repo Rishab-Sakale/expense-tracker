@@ -1,26 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import API from '../api/axios';
 
-function Expenses() {
+export default function Expenses() {
   const [expenses, setExpenses] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ category: '', amount: '', note: '', date: '' });
+  const [editId, setEditId] = useState(null);
+  const [newCategory, setNewCategory] = useState('');
   const [showCategoryForm, setShowCategoryForm] = useState(false);
-  const [editingExpense, setEditingExpense] = useState(null);
-  const [categoryName, setCategoryName] = useState('');
-  const [form, setForm] = useState({
-    category: '',
-    amount: '',
-    note: '',
-    date: new Date().toISOString().split('T')[0],
-  });
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('expenses'); // for mobile tabs
 
-  useEffect(() => {
-    fetchAll();
-  }, []);
-
-  const fetchAll = async () => {
+  const fetchData = async () => {
     try {
       const [expRes, catRes] = await Promise.all([
         API.get('/expenses/'),
@@ -35,380 +26,476 @@ function Expenses() {
     }
   };
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+  useEffect(() => { fetchData(); }, []);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
+    if (!form.category || !form.amount || !form.date) {
+      alert('Please fill all required fields!');
+      return;
+    }
     try {
-      if (editingExpense) {
-        await API.put(`/expenses/${editingExpense.id}/`, form);
+      if (editId) {
+        await API.put(`/expenses/${editId}/`, form);
+        setEditId(null);
       } else {
         await API.post('/expenses/', form);
       }
-      setForm({
-        category: '',
-        amount: '',
-        note: '',
-        date: new Date().toISOString().split('T')[0],
-      });
-      setShowForm(false);
-      setEditingExpense(null);
-      fetchAll();
+      setForm({ category: '', amount: '', note: '', date: '' });
+      fetchData();
     } catch (err) {
-      console.error(err);
+      alert('Error saving expense!');
     }
   };
 
   const handleEdit = (expense) => {
-    setEditingExpense(expense);
     setForm({
       category: expense.category,
       amount: expense.amount,
       note: expense.note || '',
       date: expense.date,
     });
-    setShowForm(true);
-    window.scrollTo(0, 0);
+    setEditId(expense.id);
+    setActiveTab('add'); // switch to add tab on mobile
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Delete this expense?')) {
-      await API.delete(`/expenses/${id}/`);
-      fetchAll();
-    }
+    if (!window.confirm('Delete this expense?')) return;
+    await API.delete(`/expenses/${id}/`);
+    fetchData();
   };
 
-  const handleAddCategory = async (e) => {
-    e.preventDefault();
+  const handleAddCategory = async () => {
+    if (!newCategory.trim()) return;
     try {
-      await API.post('/expenses/categories/', { name: categoryName });
-      setCategoryName('');
-      setShowCategoryForm(false);
-      fetchAll();
+      await API.post('/expenses/categories/', { name: newCategory });
+      setNewCategory('');
+      fetchData();
     } catch (err) {
-      console.error(err);
+      alert('Error adding category!');
     }
   };
 
   const handleDeleteCategory = async (id) => {
-    if (window.confirm('Delete this category?')) {
-      await API.delete(`/expenses/categories/${id}/`);
-      fetchAll();
-    }
+    if (!window.confirm('Delete this category?')) return;
+    await API.delete(`/expenses/categories/${id}/`);
+    fetchData();
   };
 
-  if (loading) return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: '80vh',
-    }}>
-      <p style={{ color: '#64748b' }}>Loading expenses...</p>
-    </div>
-  );
+  if (loading) {
+    return (
+      <div style={styles.loading}>
+        <p>Loading expenses...</p>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ padding: '32px', maxWidth: '1100px', margin: '0 auto' }}>
+    <div className="expenses-container">
+      <h1 className="page-title">💸 Expenses</h1>
+      <p className="page-subtitle">Manage your daily expenses and categories</p>
 
-      {/* Header */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '32px',
-      }}>
-        <div>
-          <h1 style={{ fontSize: '26px', fontWeight: '800', color: '#1e293b' }}>
-            💸 Expenses
-          </h1>
-          <p style={{ color: '#64748b', marginTop: '4px' }}>
-            Track and manage your daily expenses
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button
-            onClick={() => setShowCategoryForm(!showCategoryForm)}
-            style={{
-              background: '#f0fdf4',
-              color: '#16a34a',
-              border: '1px solid #bbf7d0',
-              padding: '10px 18px',
-              borderRadius: '10px',
-              fontWeight: '600',
-              fontSize: '14px',
-              cursor: 'pointer',
-              width: 'auto',
-            }}
-          >
-            + Category
-          </button>
-          <button
-            onClick={() => { setShowForm(!showForm); setEditingExpense(null); }}
-            style={{
-              background: 'linear-gradient(135deg, #16a34a, #15803d)',
-              color: '#fff',
-              border: 'none',
-              padding: '10px 18px',
-              borderRadius: '10px',
-              fontWeight: '600',
-              fontSize: '14px',
-              cursor: 'pointer',
-              width: 'auto',
-            }}
-          >
-            + Add Expense
-          </button>
-        </div>
+      {/* Mobile Tabs */}
+      <div style={styles.mobileTabs}>
+        <button
+          style={{ ...styles.tab, ...(activeTab === 'expenses' ? styles.tabActive : {}) }}
+          onClick={() => setActiveTab('expenses')}
+        >
+          📋 Expenses
+        </button>
+        <button
+          style={{ ...styles.tab, ...(activeTab === 'add' ? styles.tabActive : {}) }}
+          onClick={() => setActiveTab('add')}
+        >
+          ➕ Add
+        </button>
+        <button
+          style={{ ...styles.tab, ...(activeTab === 'categories' ? styles.tabActive : {}) }}
+          onClick={() => setActiveTab('categories')}
+        >
+          📂 Categories
+        </button>
       </div>
 
-      {/* Category Form */}
-      {showCategoryForm && (
-        <div style={{
-          background: '#fff',
-          borderRadius: '16px',
-          padding: '24px',
-          marginBottom: '24px',
-          boxShadow: '0 1px 8px rgba(0,0,0,0.06)',
-          border: '1px solid #e2e8f0',
-        }}>
-          <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#1e293b', marginBottom: '16px' }}>
-            Add New Category
-          </h3>
-          <form onSubmit={handleAddCategory} style={{ display: 'flex', gap: '12px' }}>
-            <input
-              type="text"
-              placeholder="Category name (e.g. Food, Travel)"
-              value={categoryName}
-              onChange={(e) => setCategoryName(e.target.value)}
-              required
-              style={{ flex: 1 }}
-            />
-            <button type="submit" style={{
-              width: 'auto',
-              padding: '12px 24px',
-              background: 'linear-gradient(135deg, #16a34a, #15803d)',
-            }}>
-              Add
+      {/* Desktop Layout */}
+      <div className="expenses-layout">
+
+        {/* Left Panel — Add Expense + Categories */}
+        <div style={styles.leftPanel}>
+
+          {/* Add/Edit Expense Form */}
+          <div
+            className="card"
+            style={{
+              marginBottom: '20px',
+              display: activeTab === 'add' || window.innerWidth > 768 ? 'block' : 'none'
+            }}
+          >
+            <h3 style={styles.sectionTitle}>
+              {editId ? '✏️ Edit Expense' : '➕ Add Expense'}
+            </h3>
+
+            <div className="form-group">
+              <label style={styles.label}>Category *</label>
+              <select
+                className="form-input"
+                value={form.category}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+              >
+                <option value="">Select category</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label style={styles.label}>Amount (₹) *</label>
+              <input
+                className="form-input"
+                type="number"
+                placeholder="0.00"
+                value={form.amount}
+                onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              />
+            </div>
+
+            <div className="form-group">
+              <label style={styles.label}>Date *</label>
+              <input
+                className="form-input"
+                type="date"
+                value={form.date}
+                onChange={(e) => setForm({ ...form, date: e.target.value })}
+              />
+            </div>
+
+            <div className="form-group">
+              <label style={styles.label}>Note</label>
+              <input
+                className="form-input"
+                type="text"
+                placeholder="Optional note..."
+                value={form.note}
+                onChange={(e) => setForm({ ...form, note: e.target.value })}
+              />
+            </div>
+
+            <button className="btn-primary" onClick={handleSubmit}>
+              {editId ? '✅ Update Expense' : '➕ Add Expense'}
             </button>
-          </form>
 
-          {/* Categories List */}
-          {categories.length > 0 && (
-            <div style={{ marginTop: '16px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              {categories.map((cat) => (
-                <div key={cat.id} style={{
-                  background: '#f0fdf4',
-                  border: '1px solid #bbf7d0',
-                  borderRadius: '8px',
-                  padding: '6px 12px',
-                  fontSize: '13px',
-                  color: '#16a34a',
-                  fontWeight: '500',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                }}>
-                  {cat.name}
-                  <span
-                    onClick={() => handleDeleteCategory(cat.id)}
-                    style={{ cursor: 'pointer', color: '#ef4444', fontWeight: '700' }}
-                  >
-                    ×
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Expense Form */}
-      {showForm && (
-        <div style={{
-          background: '#fff',
-          borderRadius: '16px',
-          padding: '28px',
-          marginBottom: '24px',
-          boxShadow: '0 1px 8px rgba(0,0,0,0.06)',
-          border: '1px solid #e2e8f0',
-        }}>
-          <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#1e293b', marginBottom: '20px' }}>
-            {editingExpense ? '✏️ Edit Expense' : '+ New Expense'}
-          </h3>
-          <form onSubmit={handleSubmit}>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '16px',
-              marginBottom: '16px',
-            }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '13px', fontWeight: '500', color: '#374151' }}>Category</label>
-                <select name="category" value={form.category} onChange={handleChange} required>
-                  <option value="">Select category</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '13px', fontWeight: '500', color: '#374151' }}>Amount (₹)</label>
-                <input
-                  type="number"
-                  name="amount"
-                  placeholder="0.00"
-                  value={form.amount}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '13px', fontWeight: '500', color: '#374151' }}>Date</label>
-                <input
-                  type="date"
-                  name="date"
-                  value={form.date}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '13px', fontWeight: '500', color: '#374151' }}>Note (optional)</label>
-                <input
-                  type="text"
-                  name="note"
-                  placeholder="Add a note..."
-                  value={form.note}
-                  onChange={handleChange}
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button type="submit" style={{ width: 'auto', padding: '11px 28px' }}>
-                {editingExpense ? 'Update Expense' : 'Save Expense'}
-              </button>
+            {editId && (
               <button
-                type="button"
-                onClick={() => { setShowForm(false); setEditingExpense(null); }}
-                style={{
-                  width: 'auto',
-                  padding: '11px 28px',
-                  background: '#f1f5f9',
-                  color: '#64748b',
-                  border: 'none',
-                }}
+                style={styles.cancelBtn}
+                onClick={() => { setEditId(null); setForm({ category: '', amount: '', note: '', date: '' }); }}
               >
                 Cancel
               </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* Expenses Table */}
-      <div style={{
-        background: '#fff',
-        borderRadius: '16px',
-        boxShadow: '0 1px 8px rgba(0,0,0,0.06)',
-        border: '1px solid #e2e8f0',
-        overflow: 'hidden',
-      }}>
-        <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#1e293b' }}>
-            All Expenses ({expenses.length})
-          </h3>
-        </div>
-
-        {expenses.length > 0 ? (
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Category</th>
-                <th>Note</th>
-                <th>Amount</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {expenses.map((expense) => (
-                <tr key={expense.id}>
-                  <td style={{ color: '#64748b' }}>{expense.date}</td>
-                  <td>
-                    <span style={{
-                      background: '#f0fdf4',
-                      color: '#16a34a',
-                      padding: '4px 10px',
-                      borderRadius: '6px',
-                      fontSize: '13px',
-                      fontWeight: '500',
-                    }}>
-                      {expense.category_name}
-                    </span>
-                  </td>
-                  <td style={{ color: '#64748b' }}>{expense.note || '—'}</td>
-                  <td style={{ fontWeight: '700', color: '#ef4444' }}>
-                    ₹{expense.amount}
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button
-                        onClick={() => handleEdit(expense)}
-                        style={{
-                          width: 'auto',
-                          padding: '6px 14px',
-                          fontSize: '13px',
-                          background: '#eff6ff',
-                          color: '#2563eb',
-                          border: 'none',
-                          borderRadius: '6px',
-                        }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(expense.id)}
-                        style={{
-                          width: 'auto',
-                          padding: '6px 14px',
-                          fontSize: '13px',
-                          background: '#fef2f2',
-                          color: '#ef4444',
-                          border: 'none',
-                          borderRadius: '6px',
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <div style={{
-            padding: '60px',
-            textAlign: 'center',
-            color: '#94a3b8',
-          }}>
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>💸</div>
-            <p style={{ fontSize: '16px', fontWeight: '500' }}>No expenses yet!</p>
-            <p style={{ fontSize: '14px', marginTop: '8px' }}>
-              Click "+ Add Expense" to get started
-            </p>
+            )}
           </div>
-        )}
+
+          {/* Categories */}
+          <div
+            className="card"
+            style={{
+              display: activeTab === 'categories' || window.innerWidth > 768 ? 'block' : 'none'
+            }}
+          >
+            <div style={styles.sectionHeader}>
+              <h3 style={styles.sectionTitle}>📂 Categories</h3>
+              <button
+                style={styles.toggleBtn}
+                onClick={() => setShowCategoryForm(!showCategoryForm)}
+              >
+                {showCategoryForm ? '−' : '+'}
+              </button>
+            </div>
+
+            {showCategoryForm && (
+              <div style={styles.categoryForm}>
+                <input
+                  className="form-input"
+                  type="text"
+                  placeholder="New category name..."
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  style={{ marginBottom: '8px' }}
+                />
+                <button className="btn-primary" onClick={handleAddCategory}>
+                  Add Category
+                </button>
+              </div>
+            )}
+
+            <div style={styles.categoryList}>
+              {categories.length === 0 ? (
+                <p style={styles.emptyText}>No categories yet</p>
+              ) : (
+                categories.map((cat) => (
+                  <div key={cat.id} style={styles.categoryItem}>
+                    <span style={styles.categoryName}>📁 {cat.name}</span>
+                    <button
+                      style={styles.deleteBtn}
+                      onClick={() => handleDeleteCategory(cat.id)}
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Panel — Expenses Table */}
+        <div
+          style={{
+            display: activeTab === 'expenses' || window.innerWidth > 768 ? 'block' : 'none'
+          }}
+        >
+          <div className="card">
+            <h3 style={{ ...styles.sectionTitle, marginBottom: '16px' }}>
+              📋 All Expenses ({expenses.length})
+            </h3>
+
+            {expenses.length === 0 ? (
+              <div style={styles.emptyState}>
+                <div style={{ fontSize: '48px', marginBottom: '12px' }}>💸</div>
+                <p style={styles.emptyText}>No expenses yet!</p>
+                <p style={{ color: '#9ca3af', fontSize: '13px' }}>Add your first expense to get started</p>
+              </div>
+            ) : (
+              <div className="expenses-table-wrapper">
+                <table className="expenses-table">
+                  <thead>
+                    <tr style={styles.tableHeader}>
+                      <th style={styles.th}>Date</th>
+                      <th style={styles.th}>Category</th>
+                      <th style={styles.th}>Amount</th>
+                      <th style={styles.th} className="hide-mobile">Note</th>
+                      <th style={styles.th}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {expenses.map((exp, index) => (
+                      <tr
+                        key={exp.id}
+                        style={{
+                          ...styles.tableRow,
+                          background: index % 2 === 0 ? 'white' : '#f9fafb',
+                        }}
+                      >
+                        <td style={styles.td}>{exp.date}</td>
+                        <td style={styles.td}>
+                          <span style={styles.categoryBadge}>
+                            {exp.category_name || exp.category}
+                          </span>
+                        </td>
+                        <td style={styles.td}>
+                          <span style={styles.amountText}>₹{exp.amount}</span>
+                        </td>
+                        <td style={{ ...styles.td, color: '#6b7280' }} className="hide-mobile">
+                          {exp.note || '—'}
+                        </td>
+                        <td style={styles.td}>
+                          <div style={styles.actionBtns}>
+                            <button
+                              style={styles.editBtn}
+                              onClick={() => handleEdit(exp)}
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              style={styles.deleteRowBtn}
+                              onClick={() => handleDelete(exp.id)}
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-export default Expenses;
+const styles = {
+  loading: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '60vh',
+    color: '#6b7280',
+  },
+  mobileTabs: {
+    display: 'flex',
+    gap: '8px',
+    marginBottom: '20px',
+    background: 'white',
+    padding: '6px',
+    borderRadius: '12px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+  },
+  tab: {
+    flex: 1,
+    padding: '10px',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '13px',
+    fontWeight: '500',
+    background: 'transparent',
+    color: '#6b7280',
+    transition: 'all 0.2s',
+  },
+  tabActive: {
+    background: '#16a34a',
+    color: 'white',
+    fontWeight: '600',
+  },
+  leftPanel: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0',
+  },
+  sectionTitle: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: '16px',
+  },
+  sectionHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '12px',
+  },
+  label: {
+    fontSize: '13px',
+    fontWeight: '500',
+    color: '#374151',
+  },
+  cancelBtn: {
+    width: '100%',
+    padding: '10px',
+    marginTop: '8px',
+    border: '1px solid #d1d5db',
+    borderRadius: '8px',
+    background: 'white',
+    color: '#6b7280',
+    cursor: 'pointer',
+    fontSize: '14px',
+  },
+  toggleBtn: {
+    width: '28px',
+    height: '28px',
+    border: '1px solid #16a34a',
+    borderRadius: '6px',
+    background: 'white',
+    color: '#16a34a',
+    cursor: 'pointer',
+    fontSize: '18px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryForm: {
+    marginBottom: '16px',
+  },
+  categoryList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    maxHeight: '300px',
+    overflowY: 'auto',
+  },
+  categoryItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '10px 12px',
+    background: '#f0fdf4',
+    borderRadius: '8px',
+    border: '1px solid #dcfce7',
+  },
+  categoryName: {
+    fontSize: '14px',
+    color: '#374151',
+    fontWeight: '500',
+  },
+  deleteBtn: {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: '16px',
+    padding: '2px',
+  },
+  emptyState: {
+    textAlign: 'center',
+    padding: '40px 20px',
+  },
+  emptyText: {
+    color: '#6b7280',
+    fontSize: '14px',
+  },
+  tableHeader: {
+    background: '#f0fdf4',
+  },
+  th: {
+    padding: '12px 16px',
+    textAlign: 'left',
+    fontSize: '13px',
+    fontWeight: '600',
+    color: '#374151',
+    borderBottom: '2px solid #dcfce7',
+    whiteSpace: 'nowrap',
+  },
+  tableRow: {
+    transition: 'background 0.1s',
+  },
+  td: {
+    padding: '12px 16px',
+    fontSize: '14px',
+    color: '#374151',
+    borderBottom: '1px solid #f3f4f6',
+  },
+  categoryBadge: {
+    background: '#dcfce7',
+    color: '#15803d',
+    padding: '3px 10px',
+    borderRadius: '20px',
+    fontSize: '12px',
+    fontWeight: '500',
+  },
+  amountText: {
+    fontWeight: '600',
+    color: '#15803d',
+  },
+  actionBtns: {
+    display: 'flex',
+    gap: '6px',
+  },
+  editBtn: {
+    background: '#eff6ff',
+    border: 'none',
+    borderRadius: '6px',
+    padding: '4px 8px',
+    cursor: 'pointer',
+    fontSize: '14px',
+  },
+  deleteRowBtn: {
+    background: '#fef2f2',
+    border: 'none',
+    borderRadius: '6px',
+    padding: '4px 8px',
+    cursor: 'pointer',
+    fontSize: '14px',
+  },
+};

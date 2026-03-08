@@ -1,36 +1,25 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import API from '../api/axios';
 
-function Budgets() {
+export default function Budgets() {
   const [budgets, setBudgets] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [budgetCheck, setBudgetCheck] = useState([]);
+  const [form, setForm] = useState({ category: '', amount: '', month: '', year: '' });
+  const [editId, setEditId] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [editingBudget, setEditingBudget] = useState(null);
-  const now = new Date();
+  const [activeTab, setActiveTab] = useState('budgets');
 
-  const [form, setForm] = useState({
-    category: '',
-    amount: '',
-    month: now.getMonth() + 1,
-    year: now.getFullYear(),
-  });
+  const currentMonth = new Date().getMonth() + 1;
+  const currentYear = new Date().getFullYear();
 
-  useEffect(() => {
-    fetchAll();
-  }, []);
-
-  const fetchAll = async () => {
+  const fetchData = async () => {
     try {
-      const [budgetRes, catRes, checkRes] = await Promise.all([
-        API.get('/budgets/'),
+      const [budgetRes, catRes] = await Promise.all([
+        API.get(`/budgets/check/?month=${currentMonth}&year=${currentYear}`),
         API.get('/expenses/categories/'),
-        API.get(`/budgets/check/?month=${now.getMonth() + 1}&year=${now.getFullYear()}`),
       ]);
       setBudgets(budgetRes.data);
       setCategories(catRes.data);
-      setBudgetCheck(checkRes.data);
     } catch (err) {
       console.error(err);
     } finally {
@@ -38,384 +27,452 @@ function Budgets() {
     }
   };
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+  useEffect(() => { fetchData(); }, []);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
+    if (!form.category || !form.amount || !form.month || !form.year) {
+      alert('Please fill all fields!');
+      return;
+    }
     try {
-      if (editingBudget) {
-        await API.put(`/budgets/${editingBudget.id}/`, form);
+      if (editId) {
+        await API.put(`/budgets/${editId}/`, form);
+        setEditId(null);
       } else {
         await API.post('/budgets/', form);
       }
-      setForm({
-        category: '',
-        amount: '',
-        month: now.getMonth() + 1,
-        year: now.getFullYear(),
-      });
-      setShowForm(false);
-      setEditingBudget(null);
-      fetchAll();
+      setForm({ category: '', amount: '', month: '', year: '' });
+      fetchData();
+      setActiveTab('budgets');
     } catch (err) {
-      alert('Budget already exists for this category and month!');
+      alert('Error saving budget!');
     }
   };
 
   const handleEdit = (budget) => {
-    setEditingBudget(budget);
     setForm({
       category: budget.category,
-      amount: budget.amount,
+      amount: budget.budget,
       month: budget.month,
       year: budget.year,
     });
-    setShowForm(true);
-    window.scrollTo(0, 0);
+    setEditId(budget.id);
+    setActiveTab('add');
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Delete this budget?')) {
-      await API.delete(`/budgets/${id}/`);
-      fetchAll();
-    }
+    if (!window.confirm('Delete this budget?')) return;
+    await API.delete(`/budgets/${id}/`);
+    fetchData();
   };
 
-  if (loading) return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: '80vh',
-    }}>
-      <p style={{ color: '#64748b' }}>Loading budgets...</p>
-    </div>
-  );
+  const getProgressColor = (spent, budget) => {
+    const percent = (spent / budget) * 100;
+    if (percent > 100) return '#b91c1c';
+    if (percent >= 90) return '#ef4444';
+    if (percent >= 75) return '#f59e0b';
+    return '#16a34a';
+  };
+
+  const getStatusEmoji = (spent, budget) => {
+    const percent = (spent / budget) * 100;
+    if (percent > 100) return '🚨 Exceeded';
+    if (percent >= 90) return '🔴 Danger';
+    if (percent >= 75) return '⚠️ Warning';
+    return '✅ Safe';
+  };
+
+  const getStatusBg = (spent, budget) => {
+    const percent = (spent / budget) * 100;
+    if (percent > 100) return '#fef2f2';
+    if (percent >= 90) return '#fef2f2';
+    if (percent >= 75) return '#fffbeb';
+    return '#f0fdf4';
+  };
+
+  if (loading) {
+    return (
+      <div style={styles.loading}>
+        <p>Loading budgets...</p>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ padding: '32px', maxWidth: '1100px', margin: '0 auto' }}>
+    <div className="budgets-container">
+      <h1 className="page-title">💰 Budgets</h1>
+      <p className="page-subtitle">
+        {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })} — Budget Overview
+      </p>
 
-      {/* Header */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '32px',
-      }}>
-        <div>
-          <h1 style={{ fontSize: '26px', fontWeight: '800', color: '#1e293b' }}>
-            💰 Budgets
-          </h1>
-          <p style={{ color: '#64748b', marginTop: '4px' }}>
-            Set and track your monthly spending limits
-          </p>
-        </div>
+      {/* Mobile Tabs */}
+      <div style={styles.mobileTabs}>
         <button
-          onClick={() => { setShowForm(!showForm); setEditingBudget(null); }}
-          style={{
-            background: 'linear-gradient(135deg, #16a34a, #15803d)',
-            color: '#fff',
-            border: 'none',
-            padding: '10px 20px',
-            borderRadius: '10px',
-            fontWeight: '600',
-            fontSize: '14px',
-            cursor: 'pointer',
-            width: 'auto',
-          }}
+          style={{ ...styles.tab, ...(activeTab === 'budgets' ? styles.tabActive : {}) }}
+          onClick={() => setActiveTab('budgets')}
         >
-          + Set Budget
+          💰 Budgets
+        </button>
+        <button
+          style={{ ...styles.tab, ...(activeTab === 'add' ? styles.tabActive : {}) }}
+          onClick={() => setActiveTab('add')}
+        >
+          ➕ {editId ? 'Edit' : 'Add'}
         </button>
       </div>
 
-      {/* Budget Form */}
-      {showForm && (
-        <div style={{
-          background: '#fff',
-          borderRadius: '16px',
-          padding: '28px',
-          marginBottom: '24px',
-          boxShadow: '0 1px 8px rgba(0,0,0,0.06)',
-          border: '1px solid #e2e8f0',
-        }}>
-          <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#1e293b', marginBottom: '20px' }}>
-            {editingBudget ? '✏️ Edit Budget' : '+ New Budget'}
-          </h3>
-          <form onSubmit={handleSubmit}>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr 1fr 1fr',
-              gap: '16px',
-              marginBottom: '20px',
-            }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '13px', fontWeight: '500', color: '#374151' }}>Category</label>
-                <select name="category" value={form.category} onChange={handleChange} required>
-                  <option value="">Select</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+      <div className="budgets-layout">
+
+        {/* Left — Add/Edit Form */}
+        <div
+          style={{
+            display: activeTab === 'add' || window.innerWidth > 768 ? 'block' : 'none'
+          }}
+        >
+          <div className="card">
+            <h3 style={styles.sectionTitle}>
+              {editId ? '✏️ Edit Budget' : '➕ Set Budget'}
+            </h3>
+
+            <div className="form-group">
+              <label style={styles.label}>Category *</label>
+              <select
+                className="form-input"
+                value={form.category}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+              >
+                <option value="">Select category</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label style={styles.label}>Budget Amount (₹) *</label>
+              <input
+                className="form-input"
+                type="number"
+                placeholder="0.00"
+                value={form.amount}
+                onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              />
+            </div>
+
+            <div style={styles.twoCol}>
+              <div className="form-group">
+                <label style={styles.label}>Month *</label>
+                <select
+                  className="form-input"
+                  value={form.month}
+                  onChange={(e) => setForm({ ...form, month: e.target.value })}
+                >
+                  <option value="">Month</option>
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                    <option key={m} value={m}>
+                      {new Date(0, m - 1).toLocaleString('default', { month: 'long' })}
+                    </option>
                   ))}
                 </select>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '13px', fontWeight: '500', color: '#374151' }}>Amount (₹)</label>
-                <input
-                  type="number"
-                  name="amount"
-                  placeholder="0.00"
-                  value={form.amount}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '13px', fontWeight: '500', color: '#374151' }}>Month</label>
-                <select name="month" value={form.month} onChange={handleChange} required>
-                  {[
-                    'January', 'February', 'March', 'April',
-                    'May', 'June', 'July', 'August',
-                    'September', 'October', 'November', 'December'
-                  ].map((m, i) => (
-                    <option key={i} value={i + 1}>{m}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '13px', fontWeight: '500', color: '#374151' }}>Year</label>
-                <input
-                  type="number"
-                  name="year"
+              <div className="form-group">
+                <label style={styles.label}>Year *</label>
+                <select
+                  className="form-input"
                   value={form.year}
-                  onChange={handleChange}
-                  required
-                />
+                  onChange={(e) => setForm({ ...form, year: e.target.value })}
+                >
+                  <option value="">Year</option>
+                  {[2024, 2025, 2026, 2027].map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button type="submit" style={{ width: 'auto', padding: '11px 28px' }}>
-                {editingBudget ? 'Update Budget' : 'Save Budget'}
-              </button>
+            <button className="btn-primary" onClick={handleSubmit}>
+              {editId ? '✅ Update Budget' : '➕ Set Budget'}
+            </button>
+
+            {editId && (
               <button
-                type="button"
-                onClick={() => { setShowForm(false); setEditingBudget(null); }}
-                style={{
-                  width: 'auto',
-                  padding: '11px 28px',
-                  background: '#f1f5f9',
-                  color: '#64748b',
-                  border: 'none',
-                }}
+                style={styles.cancelBtn}
+                onClick={() => { setEditId(null); setForm({ category: '', amount: '', month: '', year: '' }); }}
               >
                 Cancel
               </button>
+            )}
+          </div>
+        </div>
+
+        {/* Right — Budget Cards */}
+        <div
+          style={{
+            display: activeTab === 'budgets' || window.innerWidth > 768 ? 'block' : 'none'
+          }}
+        >
+          {budgets.length === 0 ? (
+            <div className="card" style={styles.emptyState}>
+              <div style={{ fontSize: '48px', marginBottom: '12px' }}>💰</div>
+              <p style={styles.emptyText}>No budgets set for this month!</p>
+              <p style={{ color: '#9ca3af', fontSize: '13px', marginTop: '4px' }}>
+                Set a budget to track your spending
+              </p>
+              <button
+                className="btn-primary"
+                style={{ marginTop: '16px', maxWidth: '200px', margin: '16px auto 0' }}
+                onClick={() => setActiveTab('add')}
+              >
+                ➕ Set First Budget
+              </button>
             </div>
-          </form>
-        </div>
-      )}
+          ) : (
+            <div className="budgets-grid">
+              {budgets.map((item) => {
+                const percent = Math.min((item.spent / item.budget) * 100, 100);
+                const rawPercent = (item.spent / item.budget) * 100;
+                const color = getProgressColor(item.spent, item.budget);
+                const status = getStatusEmoji(item.spent, item.budget);
+                const bgColor = getStatusBg(item.spent, item.budget);
 
-      {/* Budget Check Cards */}
-      {budgetCheck.length > 0 && (
-        <div style={{ marginBottom: '32px' }}>
-          <h3 style={{
-            fontSize: '16px',
-            fontWeight: '700',
-            color: '#1e293b',
-            marginBottom: '16px',
-          }}>
-            📊 This Month's Budget Status
-          </h3>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '16px',
-          }}>
-            {budgetCheck.map((item, i) => {
-              const percent = Math.min((item.spent / item.budget) * 100, 100);
-              const exceeded = item.exceeded;
-              return (
-                <div key={i} style={{
-                  background: '#fff',
-                  borderRadius: '16px',
-                  padding: '20px',
-                  boxShadow: '0 1px 8px rgba(0,0,0,0.06)',
-                  border: `1px solid ${exceeded ? '#fecaca' : '#e2e8f0'}`,
-                }}>
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    marginBottom: '12px',
-                  }}>
-                    <span style={{ fontWeight: '600', color: '#1e293b', fontSize: '15px' }}>
-                      {item.category}
-                    </span>
-                    {exceeded && (
-                      <span style={{
-                        background: '#fef2f2',
-                        color: '#ef4444',
-                        fontSize: '11px',
-                        fontWeight: '700',
-                        padding: '3px 8px',
-                        borderRadius: '6px',
-                      }}>
-                        EXCEEDED ⚠️
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Progress Bar */}
-                  <div style={{
-                    background: '#f1f5f9',
-                    borderRadius: '99px',
-                    height: '8px',
-                    marginBottom: '12px',
-                    overflow: 'hidden',
-                  }}>
-                    <div style={{
-                      width: `${percent}%`,
-                      height: '100%',
-                      background: exceeded
-                        ? '#ef4444'
-                        : 'linear-gradient(135deg, #16a34a, #15803d)',
-                      borderRadius: '99px',
-                      transition: 'width 0.5s ease',
-                    }} />
-                  </div>
-
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    fontSize: '13px',
-                  }}>
-                    <span style={{ color: '#64748b' }}>
-                      Spent: <strong style={{ color: exceeded ? '#ef4444' : '#1e293b' }}>
-                        ₹{item.spent}
-                      </strong>
-                    </span>
-                    <span style={{ color: '#64748b' }}>
-                      Budget: <strong style={{ color: '#1e293b' }}>₹{item.budget}</strong>
-                    </span>
-                  </div>
-
-                  {!exceeded && (
-                    <p style={{
-                      marginTop: '8px',
-                      fontSize: '12px',
-                      color: '#16a34a',
-                      fontWeight: '500',
-                    }}>
-                      ₹{item.remaining} remaining
-                    </p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Budgets Table */}
-      <div style={{
-        background: '#fff',
-        borderRadius: '16px',
-        boxShadow: '0 1px 8px rgba(0,0,0,0.06)',
-        border: '1px solid #e2e8f0',
-        overflow: 'hidden',
-      }}>
-        <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#1e293b' }}>
-            All Budgets ({budgets.length})
-          </h3>
-        </div>
-
-        {budgets.length > 0 ? (
-          <table>
-            <thead>
-              <tr>
-                <th>Category</th>
-                <th>Amount</th>
-                <th>Month</th>
-                <th>Year</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {budgets.map((budget) => (
-                <tr key={budget.id}>
-                  <td>
-                    <span style={{
-                      background: '#f0fdf4',
-                      color: '#16a34a',
-                      padding: '4px 10px',
-                      borderRadius: '6px',
-                      fontSize: '13px',
-                      fontWeight: '500',
-                    }}>
-                      {budget.category_name}
-                    </span>
-                  </td>
-                  <td style={{ fontWeight: '700', color: '#1e293b' }}>
-                    ₹{budget.amount}
-                  </td>
-                  <td style={{ color: '#64748b' }}>{budget.month}</td>
-                  <td style={{ color: '#64748b' }}>{budget.year}</td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button
-                        onClick={() => handleEdit(budget)}
-                        style={{
-                          width: 'auto',
-                          padding: '6px 14px',
-                          fontSize: '13px',
-                          background: '#eff6ff',
-                          color: '#2563eb',
-                          border: 'none',
-                          borderRadius: '6px',
-                        }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(budget.id)}
-                        style={{
-                          width: 'auto',
-                          padding: '6px 14px',
-                          fontSize: '13px',
-                          background: '#fef2f2',
-                          color: '#ef4444',
-                          border: 'none',
-                          borderRadius: '6px',
-                        }}
-                      >
-                        Delete
-                      </button>
+                return (
+                  <div
+                    key={item.id}
+                    className="card"
+                    style={{ ...styles.budgetCard, background: bgColor }}
+                  >
+                    {/* Header */}
+                    <div style={styles.budgetHeader}>
+                      <div>
+                        <h4 style={styles.categoryName}>{item.category_name}</h4>
+                        <span style={{ ...styles.statusBadge, background: color }}>
+                          {status}
+                        </span>
+                      </div>
+                      <div style={styles.budgetActions}>
+                        <button
+                          style={styles.editBtn}
+                          onClick={() => handleEdit(item)}
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          style={styles.deleteBtn}
+                          onClick={() => handleDelete(item.id)}
+                        >
+                          🗑️
+                        </button>
+                      </div>
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <div style={{
-            padding: '60px',
-            textAlign: 'center',
-            color: '#94a3b8',
-          }}>
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>💰</div>
-            <p style={{ fontSize: '16px', fontWeight: '500' }}>No budgets set yet!</p>
-            <p style={{ fontSize: '14px', marginTop: '8px' }}>
-              Click "+ Set Budget" to get started
-            </p>
-          </div>
-        )}
+
+                    {/* Amounts */}
+                    <div style={styles.amountRow}>
+                      <div style={styles.amountItem}>
+                        <div style={styles.amountLabel}>Spent</div>
+                        <div style={{ ...styles.amountValue, color }}>₹{item.spent}</div>
+                      </div>
+                      <div style={styles.amountDivider}>/</div>
+                      <div style={styles.amountItem}>
+                        <div style={styles.amountLabel}>Budget</div>
+                        <div style={styles.amountValue}>₹{item.budget}</div>
+                      </div>
+                      <div style={styles.amountItem}>
+                        <div style={styles.amountLabel}>Remaining</div>
+                        <div style={{ ...styles.amountValue, color: item.remaining >= 0 ? '#16a34a' : '#dc2626' }}>
+                          ₹{item.remaining}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div style={styles.progressContainer}>
+                      <div style={styles.progressBg}>
+                        <div
+                          style={{
+                            ...styles.progressFill,
+                            width: `${percent}%`,
+                            background: color,
+                          }}
+                        />
+                      </div>
+                      <span style={{ ...styles.percentText, color }}>
+                        {rawPercent.toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-export default Budgets;
+const styles = {
+  loading: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '60vh',
+    color: '#6b7280',
+  },
+  mobileTabs: {
+    display: 'flex',
+    gap: '8px',
+    marginBottom: '20px',
+    background: 'white',
+    padding: '6px',
+    borderRadius: '12px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+  },
+  tab: {
+    flex: 1,
+    padding: '10px',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '13px',
+    fontWeight: '500',
+    background: 'transparent',
+    color: '#6b7280',
+    transition: 'all 0.2s',
+  },
+  tabActive: {
+    background: '#16a34a',
+    color: 'white',
+    fontWeight: '600',
+  },
+  sectionTitle: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: '16px',
+  },
+  label: {
+    fontSize: '13px',
+    fontWeight: '500',
+    color: '#374151',
+  },
+  twoCol: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '12px',
+  },
+  cancelBtn: {
+    width: '100%',
+    padding: '10px',
+    marginTop: '8px',
+    border: '1px solid #d1d5db',
+    borderRadius: '8px',
+    background: 'white',
+    color: '#6b7280',
+    cursor: 'pointer',
+    fontSize: '14px',
+  },
+  emptyState: {
+    textAlign: 'center',
+    padding: '40px 20px',
+  },
+  emptyText: {
+    color: '#6b7280',
+    fontSize: '15px',
+    fontWeight: '500',
+  },
+  budgetCard: {
+    borderRadius: '12px',
+    padding: '16px',
+    border: '1px solid #e5e7eb',
+  },
+  budgetHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: '12px',
+  },
+  categoryName: {
+    fontSize: '15px',
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: '6px',
+  },
+  statusBadge: {
+    color: 'white',
+    padding: '3px 10px',
+    borderRadius: '20px',
+    fontSize: '11px',
+    fontWeight: '600',
+  },
+  budgetActions: {
+    display: 'flex',
+    gap: '6px',
+  },
+  editBtn: {
+    background: '#eff6ff',
+    border: 'none',
+    borderRadius: '6px',
+    padding: '4px 8px',
+    cursor: 'pointer',
+    fontSize: '14px',
+  },
+  deleteBtn: {
+    background: '#fef2f2',
+    border: 'none',
+    borderRadius: '6px',
+    padding: '4px 8px',
+    cursor: 'pointer',
+    fontSize: '14px',
+  },
+  amountRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    marginBottom: '12px',
+    flexWrap: 'wrap',
+  },
+  amountItem: {
+    flex: 1,
+    minWidth: '70px',
+  },
+  amountLabel: {
+    fontSize: '11px',
+    color: '#9ca3af',
+    marginBottom: '2px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+  },
+  amountValue: {
+    fontSize: '16px',
+    fontWeight: '700',
+    color: '#374151',
+  },
+  amountDivider: {
+    color: '#d1d5db',
+    fontSize: '20px',
+  },
+  progressContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+  },
+  progressBg: {
+    flex: 1,
+    height: '8px',
+    background: '#e5e7eb',
+    borderRadius: '4px',
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: '4px',
+    transition: 'width 0.5s ease',
+  },
+  percentText: {
+    fontSize: '12px',
+    fontWeight: '600',
+    minWidth: '40px',
+    textAlign: 'right',
+  },
+};
