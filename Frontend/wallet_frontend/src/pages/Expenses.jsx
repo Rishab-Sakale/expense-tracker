@@ -8,6 +8,7 @@ function Expenses() {
   const [showForm, setShowForm] = useState(false);
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [editingExpense, setEditingExpense] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   const [categoryName, setCategoryName] = useState('');
   const [form, setForm] = useState({
     category: '',
@@ -41,11 +42,29 @@ function Expenses() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Bug 9 fix — category must be selected
+    if (!form.category) {
+      alert('Please select a category!');
+      return;
+    }
+
+    // Bug 7 & 8 fix — amount must be a valid positive number
+    const amount = parseFloat(form.amount);
+    if (isNaN(amount) || amount <= 0) {
+      alert('Please enter a valid positive amount!');
+      return;
+    }
+
+    // Bug 10 fix — prevent duplicate clicks
+    if (submitting) return;
+    setSubmitting(true);
+
     try {
       if (editingExpense) {
-        await API.put(`/expenses/${editingExpense.id}/`, form);
+        await API.put(`/expenses/${editingExpense.id}/`, { ...form, amount });
       } else {
-        await API.post('/expenses/', form);
+        await API.post('/expenses/', { ...form, amount });
       }
       setForm({
         category: '',
@@ -58,6 +77,8 @@ function Expenses() {
       fetchAll();
     } catch (err) {
       console.error(err);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -85,10 +106,10 @@ function Expenses() {
     try {
       await API.post('/expenses/categories/', { name: categoryName });
       setCategoryName('');
-      setShowCategoryForm(false);
-      fetchAll();
+      await fetchAll();
     } catch (err) {
       console.error(err);
+      alert('Failed to add category!');
     }
   };
 
@@ -100,12 +121,7 @@ function Expenses() {
   };
 
   if (loading) return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: '80vh',
-    }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '80vh' }}>
       <p style={{ color: '#64748b' }}>Loading expenses...</p>
     </div>
   );
@@ -121,12 +137,8 @@ function Expenses() {
         marginBottom: '32px',
       }}>
         <div>
-          <h1 style={{ fontSize: '26px', fontWeight: '800', color: '#1e293b' }}>
-            💸 Expenses
-          </h1>
-          <p style={{ color: '#64748b', marginTop: '4px' }}>
-            Track and manage your daily expenses
-          </p>
+          <h1 style={{ fontSize: '26px', fontWeight: '800', color: '#1e293b' }}>💸 Expenses</h1>
+          <p style={{ color: '#64748b', marginTop: '4px' }}>Track and manage your daily expenses</p>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
           <button
@@ -195,7 +207,6 @@ function Expenses() {
             </button>
           </form>
 
-          {/* Categories List */}
           {categories.length > 0 && (
             <div style={{ marginTop: '16px', display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               {categories.map((cat) => (
@@ -263,6 +274,9 @@ function Expenses() {
                   placeholder="0.00"
                   value={form.amount}
                   onChange={handleChange}
+                  min="0.01"
+                  step="0.01"
+                  onKeyDown={(e) => ['e', 'E', '+', '-'].includes(e.key) && e.preventDefault()}
                   required
                 />
               </div>
@@ -291,8 +305,17 @@ function Expenses() {
             </div>
 
             <div style={{ display: 'flex', gap: '12px' }}>
-              <button type="submit" style={{ width: 'auto', padding: '11px 28px' }}>
-                {editingExpense ? 'Update Expense' : 'Save Expense'}
+              <button
+                type="submit"
+                disabled={submitting}
+                style={{
+                  width: 'auto',
+                  padding: '11px 28px',
+                  opacity: submitting ? 0.7 : 1,
+                  cursor: submitting ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {submitting ? 'Saving...' : editingExpense ? 'Update Expense' : 'Save Expense'}
               </button>
               <button
                 type="button"
@@ -354,9 +377,7 @@ function Expenses() {
                     </span>
                   </td>
                   <td style={{ color: '#64748b' }}>{expense.note || '—'}</td>
-                  <td style={{ fontWeight: '700', color: '#ef4444' }}>
-                    ₹{expense.amount}
-                  </td>
+                  <td style={{ fontWeight: '700', color: '#ef4444' }}>₹{expense.amount}</td>
                   <td>
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <button
@@ -394,16 +415,10 @@ function Expenses() {
             </tbody>
           </table>
         ) : (
-          <div style={{
-            padding: '60px',
-            textAlign: 'center',
-            color: '#94a3b8',
-          }}>
+          <div style={{ padding: '60px', textAlign: 'center', color: '#94a3b8' }}>
             <div style={{ fontSize: '48px', marginBottom: '16px' }}>💸</div>
             <p style={{ fontSize: '16px', fontWeight: '500' }}>No expenses yet!</p>
-            <p style={{ fontSize: '14px', marginTop: '8px' }}>
-              Click "+ Add Expense" to get started
-            </p>
+            <p style={{ fontSize: '14px', marginTop: '8px' }}>Click "+ Add Expense" to get started</p>
           </div>
         )}
       </div>
