@@ -85,7 +85,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'expense_tracker',
         'USER' : 'root',
-        'PASSWORD' : 'Mysql@123',
+        'PASSWORD' : 'Vikasreddy@2002',
         'HOST' : 'localhost',
         'PORT': 3306,
     }
